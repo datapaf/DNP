@@ -1,9 +1,29 @@
+from multithreading import Thread
+from multithreading import Lock
 import socket
 import sys
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+new_thread_port = None
+lock = Lock()
+
+
+def game(client_address):
+
+	thread_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	thread_socket.bind((SERVER_IP, 0))
+
+	lock.acquire()
+	new_thread_port = thread_socket.getsockname()[1]
+	lock.release()
+
+	
+
+
 
 if __name__ == '__main__':
+
+	server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	
 	# getting the port number
 	try:
@@ -39,7 +59,11 @@ if __name__ == '__main__':
 
 		print('Client connected')
 
-		
+		new_thread = Thread(target=game, args=(client_address,))
+		new_thread.start()
 
+		client_socket.send(bytes(new_thread_port))
+
+		client_socket.close()
 
 
