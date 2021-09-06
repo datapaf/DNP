@@ -118,7 +118,8 @@ if __name__ == '__main__':
 	SERVER_ADDRESS = (SERVER_IP, SERVER_PORT)
 
 	try:
-
+		with SimpleXMLRPCServer(SERVER_ADDRESS, LogRequests=True) as server:
+			server.serve_forever()
 	except KeyboardInterrupt:
 		print('Server is stopping')
 		sys.exit(0)
