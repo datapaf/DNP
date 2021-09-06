@@ -85,9 +85,13 @@ if __name__ == '__main__':
 					break
 			else:
 				print(results[1])
+
 	except socket.error:
+
 		print('Connection lost')
 		sys.exit(0)
+
 	except KeyboardInterrupt:
+		
 		print('Exit program')
 		sys.exit(0)

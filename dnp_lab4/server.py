@@ -76,7 +76,7 @@ def thread_procedure(main_thread_client_con_sock):
 		thread_socket.settimeout(5)
 		client_connection_socket, _ = thread_socket.accept()
 		play_game(client_connection_socket)
-	except socket.timeout:
+	except:
 		clients_online -= 1
 		return
 
