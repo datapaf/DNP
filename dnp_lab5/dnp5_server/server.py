@@ -10,14 +10,17 @@ def send_file(filename, data):
         return False
 
     with open(filename, 'wb') as file:
-        file.write(data)
+        file.write(data.data)
         print(f'{filename} saved')
         return True
 
 
 def list_files():
     
-    return os.listdir()
+    filenames = os.listdir()
+    filenames.remove('server.py')
+
+    return filenames
 
 
 def delete_file(filename):
@@ -38,7 +41,7 @@ def get_file(filename):
 
     with open(filename, 'rb') as file:
         print(f'File send: {filename}')
-        return file
+        return file.read()
 
 
 def parse_command(command):
@@ -54,57 +57,36 @@ def calculate(expression):
 
         operator, left_operand, right_operand = parse_command(expression)
 
+        object_to_return = list()
+
         if operator == '*':
             result = left_operand * right_operand
-
-            print(f'{expression} -- done')
-
-            if result.is_integer():
-                return tuple(int(result))
-            else:
-                return tuple(result)
-        elif operator == '/':
+        elif operator == '/':    
             result = left_operand / right_operand
-
-            print(f'{expression} -- done')
-
-            if result.is_integer():
-                return tuple(int(result))
-            else:
-                return tuple(result)
         elif operator == '-':
             result = left_operand - right_operand
-
-            print(f'{expression} -- done')
-
-            if result.is_integer():
-                return tuple(int(result))
-            else:
-                return tuple(result)
         elif operator == '+':
             result = left_operand + right_operand
-
-            print(f'{expression} -- done')
-
-            if result.is_integer():
-                return tuple(int(result))
-            else:
-                return tuple(result)
         elif operator == '>':
-            print(f'{expression} -- done')
-            return tuple(left_operand > right_operand)
+            result = left_operand > right_operand
         elif operator == '<':
-            print(f'{expression} -- done')
-            return tuple(left_operand < right_operand)
+            result = left_operand < right_operand
         elif operator == '>=':
-            print(f'{expression} -- done')
-            return tuple(left_operand >= right_operand)
+            result = left_operand >= right_operand
         elif operator == '<=':
-            print(f'{expression} -- done')
-            return tuple(left_operand <= right_operand)
+            result = left_operand <= right_operand
         else:
             print(f'{expression} -- not done')
-            return (False, 'No such operation')
+            return [False, 'No such operation']
+
+        print(f'{expression} -- done')
+
+        if result.is_integer():
+            object_to_return.append(int(result))
+        else:
+            object_to_return.append(result)
+
+        return object_to_return
 
     except Exception as e:
         print(e)

@@ -3,14 +3,6 @@ import sys
 import os
 
 
-def print_response(response):
-
-	if response == True:
-		print('Completed')
-	else:
-		print('Not completed')
-
-
 if __name__ == '__main__':
 
 	SERVER_IP = sys.argv[1]
@@ -37,13 +29,18 @@ if __name__ == '__main__':
 					filename = command[1]
 					
 					if not os.path.isfile(filename):
-						print(f'No such file')
+						print('Not completed')
+						print('No such file')
 						continue
 
 					with open(filename, 'rb') as file:
 						data = file.read()
 						response = proxy.send_file(filename, data)
-						print_response(response)
+
+						if response == False:
+							print('Not completed')
+							print('File already exists')
+							continue
 
 				elif operation == 'list':
 
@@ -57,7 +54,11 @@ if __name__ == '__main__':
 					filename = command[1]
 
 					response = proxy.delete_file(filename)
-					print_response(response)
+					
+					if response == False:
+						print('Not completed')
+						print('No such file')
+						continue
 
 				elif operation == 'get':
 
@@ -70,12 +71,13 @@ if __name__ == '__main__':
 						filename_to_open = filename
 
 					if os.path.isfile(filename_to_open):
-						print(f'File already exists')
+						print('Not completed')
+						print('File already exists')
 						continue
 
 					with open(filename_to_open, 'wb') as file:
-							data = proxy.get_file(filename)
-							file.write(data)
+						data = proxy.get_file(filename)
+						file.write(data.data)
 
 				elif operation == 'calc':
 
@@ -86,8 +88,16 @@ if __name__ == '__main__':
 					if len(response) == 2:
 						print('Not completed')
 						print(response[1])
+						continue
 					else:
 						print(response[0])
+
+				else:
+					print('Not completed')
+					print('Wrong command')
+					continue
+
+				print('Completed')
 
 
 	except KeyboardInterrupt:
