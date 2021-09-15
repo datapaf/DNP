@@ -89,8 +89,7 @@ def calculate(expression):
         return object_to_return
 
     except Exception as e:
-        print(e)
-        #print(f'{expression} -- not done')
+        print(f'{expression} -- not done')
         return (False, 'Division by zero')
 
 

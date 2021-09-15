@@ -77,6 +77,12 @@ if __name__ == '__main__':
 
 					with open(filename_to_open, 'wb') as file:
 						data = proxy.get_file(filename)
+
+						if data == False:
+							print('Not completed')
+							print('No such file')
+							continue
+
 						file.write(data.data)
 
 				elif operation == 'calc':
