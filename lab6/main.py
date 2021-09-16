@@ -7,6 +7,13 @@ from parameters import m
 import sys
 import time
 
+
+def update_finger_tables(nodes):
+
+	with ServerProxy(f'http://{REGISTER_IP}:{REGISTER_PORT}') as register_proxy:
+		for node in nodes:
+			node.finger_table = register_proxy.populate_finger_table(node.id)
+
 if __name__ == '__main__':
 
 	if len(sys.argv) == 4:
@@ -26,13 +33,10 @@ if __name__ == '__main__':
 
 	for port in range(first_port, last_port + 1):
 		nodes.append(Node(port))
-		print(f'node with port {port} created')
 
+	update_finger_tables(nodes)
 
-	with ServerProxy(f'http://{REGISTER_IP}:{REGISTER_PORT}') as register_proxy:
-		for node in nodes:
-			print(node.id)
-			node.finger_table = register_proxy.populate_finger_table(node.id)
+	print(f'{len(nodes)} nodes created')
 
 	while True:
 
@@ -44,5 +48,10 @@ if __name__ == '__main__':
 		elif command[0] == 'get_finger_table':
 			with ServerProxy(f'http://{REGISTER_IP}:{command[1]}') as node_proxy:
 				print(node_proxy.get_finger_table())
+		elif command[0] == 'quit':
+			with ServerProxy(f'http://{REGISTER_IP}:{command[1]}') as node_proxy:
+				response, message = node_proxy.quit()
+			print(message)
+			update_finger_tables(nodes)
 		else:
 			print('no such command')

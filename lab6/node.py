@@ -16,9 +16,7 @@ class Node(Thread):
 			if self.id == -1:
 				raise Exception(message)
 
-			self.finger_table = None
 			#self.finger_table = register_proxy.populate_finger_table(self.id)
-
 
 		self.port = port
 		self.server = SimpleXMLRPCServer((REGISTER_IP, port))
@@ -40,9 +38,9 @@ class Node(Thread):
 
 			response, message = register_proxy.deregister(self.id)
 
-			self.terminate()
+		#self.terminate()
 
-			if response == True:
-				return True, 'Quit successfull'
-			else:
-				return False, message
+		if response == True:
+			return True, 'Quit successfull'
+		else:
+			return False, message

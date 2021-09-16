@@ -32,6 +32,8 @@ class Registry(Thread):
 
 		while True:
 			new_node_id = random.randint(0, 2**m - 1)
+			new_node_id = str(new_node_id)
+
 			if new_node_id not in self.registered_nodes:
 				break
 
@@ -56,21 +58,28 @@ class Registry(Thread):
 
 	def succ(self, id):
 
-		id_list = list(self.registered_nodes.keys())
+		id_list = [int(i) for i in self.registered_nodes]
 		id_list.sort()
 
 		for i in id_list:
-			if i > id:
+			if i >= id:
 				return i
+
+		return None
 
 	def populate_finger_table(self, id):
 
 		finger_table = dict()
 
-		for i in range(1, m + 1):
-			ith_entry = self.succ(id + 2**(i-1))
-			finger_table[ith_entry] = self.registered_nodes[ith_entry]
-			print(f'finger_table[{ith_entry}] =', finger_table[ith_entry])
-			# finger_table[i] = succ(id + 2**(i-1))
+		for i in range(m):
 
+			ith_entry = self.succ( (int(id) + 2**i) % 2**m )
+
+			if ith_entry == None:
+				continue
+			
+			ith_entry = str(ith_entry)
+
+			finger_table[ith_entry] = self.registered_nodes[ith_entry]
+			
 		return finger_table
