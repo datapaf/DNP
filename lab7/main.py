@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	register = Registry()
 	print('register created')
 
-	nodes = []
+	nodes = list()
 
 	for port in range(first_port, last_port + 1):
 		nodes.append(Node(port))
@@ -55,12 +55,22 @@ if __name__ == '__main__':
 
 			print(response)
 
+		elif command[0] == 'get':
+
+			filename = command[2]
+			hash_value = zlib.adler32(filename.encode())
+			target_id = hash_value % 2 ** params.m
+			print(f"{filename} has identifier {target_id}")
+			
+			with ServerProxy(f'http://{params.REGISTER_IP}:{command[1]}') as node_proxy:
+				response = node_proxy.getfile(filename)
+
+			print(response)
+
 		elif command[0] == 'quit':
 		
 			with ServerProxy(f'http://{params.REGISTER_IP}:{command[1]}') as node_proxy:
-				response, message = node_proxy.quit()
-		
-			print(message)
+				print(node_proxy.quit())
 		
 		else:
 			print('no such command')

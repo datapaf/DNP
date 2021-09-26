@@ -18,7 +18,9 @@ class Registry(Thread):
 		self.server.register_function(self.get_chord_info)
 		self.server.register_function(self.populate_finger_table)
 		self.server.register_function(self.pred)
+		self.server.register_function(self.pred_port)
 		self.server.register_function(self.succ)
+		self.server.register_function(self.succ_port)
 
 		self.start()
 
@@ -33,6 +35,7 @@ class Registry(Thread):
 			return -1, 'Unable to register: the Chord is full'
 
 		while True:
+
 			new_node_id = random.randint(0, 2 ** params.m - 1)
 
 			if str(new_node_id) not in self.registered_nodes:
@@ -72,6 +75,9 @@ class Registry(Thread):
 
 		return id_list[0]
 
+	def succ_port(self, id, considerEqual=True):
+		return self.registered_nodes[str(self.succ(id, considerEqual))]
+
 	def pred(self, id):
 
 		id_list = [int(i) for i in self.registered_nodes]
@@ -82,6 +88,9 @@ class Registry(Thread):
 				return i
 
 		return id_list[0]
+
+	def pred_port(self, id):
+		return self.registered_nodes[str(self.pred(id))]
 
 	def populate_finger_table(self, id):
 
