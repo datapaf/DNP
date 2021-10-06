@@ -7,6 +7,12 @@ import sys
 import random
 import time
 
+def wait_for(time):
+    timing = datetime.datetime.now()
+    while True:
+        if (datetime.datetime.now() - timing).total_seconds() * 1000 > time:
+            break
+
 class State(Enum):
     FOLLOWER = 'follower'
     CANDIDATE = 'candidate'
@@ -25,20 +31,11 @@ class Timer(Thread):
         self.is_up = False
 
 
-    def wait(self):
-        
-        timing = datetime.datetime.now()
-        
-        while True:
-            if (datetime.datetime.now() - timing).total_seconds() * 1000 > self.waiting_time:
-                break
-
-
     def run(self):
 
         while True:
             if not self.is_up and self.waiting_time != None:
-                self.wait()
+                wait_for(self.waiting_time)
                 self.is_up = True
 
 class RPCServer(Thread):
@@ -54,7 +51,6 @@ class RPCServer(Thread):
 
     def run(self):
         self.server.serve_forever()
-
 
 class RAFTNode:
 
@@ -103,6 +99,7 @@ class RAFTNode:
         if term == self.term and self.not_voted:
             self.state = State.FOLLOWER
             self.not_voted = False
+            print(f'voted for node {candidate_id}')
             return self.term, True
 
         return self.term, False
@@ -118,7 +115,7 @@ class RAFTNode:
             return self.term, False
 
 
-    def change_state(self, new_state, msg=None):
+    def change_state(self, new_state, new_term=None):
 
         if self.state == State.FOLLOWER and new_state == State.CANDIDATE:
             self.term += 1
@@ -126,14 +123,17 @@ class RAFTNode:
 
         elif self.state == State.CANDIDATE and new_state == State.FOLLOWER:
 
-            if msg != None and msg[0] == 'vote with higher term':
-                self.term = msg[1]
+            if new_term != None:
+                self.term = new_term
 
             self.timer.set(random.randint(150, 300))
 
         elif self.state == State.CANDIDATE and new_state == State.LEADER:
             RAFTNode.leader_id = self.id
             RAFTNode.leader_address = self.my_address
+
+        elif self.state == State.LEADER and new_state == State.FOLLOWER:
+            self.term = new_term
 
         self.state = new_state
         self.is_state_shown = False
@@ -155,10 +155,12 @@ class RAFTNode:
 
         while True:
 
+            # print state and term if the state has been changed
             self.show_state_and_term()
 
+            # sleep if suspend is called
             if self.sleep_for > 0:
-                time.sleep(self.sleep_for)
+                wait_for(self.sleep_for)
 
             if self.state == State.FOLLOWER:
 
@@ -194,10 +196,8 @@ class RAFTNode:
                                     n_voters += 1
 
                                     if response[0] > self.term:
-                                        self.change_state(
-                                            State.FOLLOWER, 
-                                            ('vote with higher term', response[0])
-                                        )
+                                        self.change_state(State.FOLLOWER, new_term=response[0])
+                                        # stop voting due to vote with higher term
                                         break
                                     
                                     if response[1] == True:
@@ -217,7 +217,25 @@ class RAFTNode:
                         self.change_state(State.FOLLOWER)
                 
             elif self.state == State.LEADER:
-                pass
+                
+                wait_for(50)
+
+                for id in self.addresses:
+
+                    try:
+
+                        # don't send heartbeat message itself
+                        if id == self.id:
+                            continue
+
+                        with ServerProxy(f'http://{self.addresses[id][0]}:{self.addresses[id][1]}') as other_node:
+                            response = other_node.append_entries(self.term, self.id)
+                            if response[0] > self.term:
+                                self.change_state(State.FOLLOWER, new_term=response[0])
+                    
+                    except ConnectionRefusedError:
+                        continue
+
 
 
 if __name__ == '__main__':
