@@ -25,10 +25,11 @@ class Timer(Thread):
         Thread.__init__(self)
         self.is_up = threading.Event()
 
+
     def set(self, time_ms): 
         self.is_up.clear()
         self.deadline = int(time.time() * 1000) + time_ms
-        self.last_set_time = self.deadline - time_ms
+        
 
     def run(self):
         while True:
@@ -77,7 +78,8 @@ class RAFTNode:
     def suspend(self, period):
         print(f'Command from client: suspend {period}')
         print(f'sleeping for {period} seconds')
-        self.sleep_for = period
+        self.sleep_for = int(period)
+        return True
 
 
     def get_leader(self):
@@ -155,8 +157,9 @@ class RAFTNode:
 
             # sleep if suspend is called
             if self.sleep_for > 0:
-                time.sleep(self.sleep_for * 0.001)
+                time.sleep(self.sleep_for)
                 self.sleep_for = 0
+                print('woke up')
 
             if self.state == State.FOLLOWER:
 
@@ -196,10 +199,11 @@ class RAFTNode:
                     # voting stopped due to vote with higher term
                     if self.state == State.FOLLOWER:
                         continue
-
+                    
                     if votes > n_voters / 2 and not self.timer.is_up.is_set():
                         self.change_state(State.LEADER)
                     else:
+                        print('here')
                         self.change_state(State.FOLLOWER)
             
             if self.state == State.LEADER:
