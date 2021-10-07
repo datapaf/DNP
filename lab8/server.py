@@ -1,3 +1,4 @@
+import threading
 from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.client import ServerProxy
 from threading import Thread
@@ -7,49 +8,46 @@ import sys
 import random
 import time
 
-def wait_for(time):
-    timing = datetime.datetime.now()
-    while True:
-        if (datetime.datetime.now() - timing).total_seconds() * 1000 > time:
-            break
-
 class State(Enum):
     FOLLOWER = 'follower'
     CANDIDATE = 'candidate'
     LEADER = 'leader'
 
+def wait_for(time_ms):
+    timing = datetime.datetime.now()
+    while True:
+        if (datetime.datetime.now() - timing).total_seconds() * 1000 > time_ms:
+            break
+
 class Timer(Thread):
     
     def __init__(self):
         Thread.__init__(self)
-        self.waiting_time = None
-        self.is_up = False
+        self.is_up = threading.Event()
 
-    
-    def set(self, time):
-        self.waiting_time = time
-        self.is_up = False
-
+    def set(self, time_ms): 
+        self.is_up.clear()
+        self.deadline = int(time.time() * 1000) + time_ms
+        self.last_set_time = self.deadline - time_ms
 
     def run(self):
-
         while True:
-            if not self.is_up and self.waiting_time != None:
-                wait_for(self.waiting_time)
-                self.is_up = True
+            if not self.is_up.is_set() and int(time.time() * 1000) > self.deadline:
+                self.is_up.set()
 
 class RPCServer(Thread):
 
     def __init__(self, node):
         Thread.__init__(self)
         
-        self.server = SimpleXMLRPCServer(node.my_address)
+        self.server = SimpleXMLRPCServer(node.my_address, logRequests=False)
         self.server.register_function(node.suspend)
         self.server.register_function(node.get_leader)
         self.server.register_function(node.request_vote)
         self.server.register_function(node.append_entries)
 
     def run(self):
+        print(f'server started at {self.server.server_address[0]}:{self.server.server_address[1]}')
         self.server.serve_forever()
 
 class RAFTNode:
@@ -70,8 +68,8 @@ class RAFTNode:
         
         self.not_voted = True
 
-        self.timer = Timer()
         self.rpc = RPCServer(self)
+        self.timer = Timer()
 
         self.sleep_for = 0
     
@@ -97,11 +95,10 @@ class RAFTNode:
             self.not_voted = True
 
         if term == self.term and self.not_voted:
-            self.state = State.FOLLOWER
             self.not_voted = False
             print(f'voted for node {candidate_id}')
             return self.term, True
-
+        
         return self.term, False
 
 
@@ -111,22 +108,21 @@ class RAFTNode:
 
         if term >= self.term:
             return self.term, True
-        else:
-            return self.term, False
+    
+        return self.term, False
 
 
     def change_state(self, new_state, new_term=None):
 
+        self.timer.set(random.randint(150, 300))
+
         if self.state == State.FOLLOWER and new_state == State.CANDIDATE:
             self.term += 1
-            self.timer.set(random.randint(150, 300))
 
         elif self.state == State.CANDIDATE and new_state == State.FOLLOWER:
 
             if new_term != None:
                 self.term = new_term
-
-            self.timer.set(random.randint(150, 300))
 
         elif self.state == State.CANDIDATE and new_state == State.LEADER:
             RAFTNode.leader_id = self.id
@@ -148,10 +144,9 @@ class RAFTNode:
     def run(self):
 
         self.rpc.start()
-        print(f'server started at {self.my_address[0]}:{self.my_address[1]}')
 
-        self.timer.start()
         self.timer.set(random.randint(150, 300))
+        self.timer.start()
 
         while True:
 
@@ -160,13 +155,15 @@ class RAFTNode:
 
             # sleep if suspend is called
             if self.sleep_for > 0:
-                wait_for(self.sleep_for)
+                time.sleep(self.sleep_for * 0.001)
+                self.sleep_for = 0
 
             if self.state == State.FOLLOWER:
 
-                if self.timer.is_up:
-                    print('The leader is dead')
-                    self.change_state(State.CANDIDATE)
+                self.timer.is_up.wait()
+
+                print('The leader is dead')
+                self.change_state(State.CANDIDATE)
 
             elif self.state == State.CANDIDATE:
                 
@@ -177,66 +174,48 @@ class RAFTNode:
 
                     for id in self.addresses:
                         
-                        if id == self.id:
-                        
-                            n_voters += 1
+                        try:
                             
-                            votes += 1
-                            self.not_voted = False
-                            print(f'Voted for node {id}')
-                            print('Votes received')
-                        
-                        else:
-                            
-                            try:
+                            with ServerProxy(f'http://{self.addresses[id][0]}:{self.addresses[id][1]}') as other_node:
+                                
+                                response = other_node.request_vote(self.term, self.id)
+                                n_voters += 1
 
-                                with ServerProxy(f'http://{self.addresses[id][0]}:{self.addresses[id][1]}') as other_node:
-
-                                    response = other_node.request_vote(self.term, self.id)
-                                    n_voters += 1
-
-                                    if response[0] > self.term:
-                                        self.change_state(State.FOLLOWER, new_term=response[0])
-                                        # stop voting due to vote with higher term
-                                        break
+                                if response[0] > self.term:
+                                    self.change_state(State.FOLLOWER, new_term=response[0])
+                                    # stop voting due to vote with higher term
+                                    break
                                     
-                                    if response[1] == True:
-                                        votes += 1
-                                        print('Votes received')
+                                if response[1] == True:
+                                    votes += 1
+                                    print('Votes received')
                             
-                            except ConnectionRefusedError:
-                                continue
+                        except ConnectionRefusedError:
+                            continue
 
                     # voting stopped due to vote with higher term
                     if self.state == State.FOLLOWER:
                         continue
 
-                    if votes > n_voters / 2 and not self.timer.is_up:
+                    if votes > n_voters / 2 and not self.timer.is_up.is_set():
                         self.change_state(State.LEADER)
                     else:
                         self.change_state(State.FOLLOWER)
-                
-            elif self.state == State.LEADER:
-                
-                wait_for(50)
+            
+            if self.state == State.LEADER:
+
+                time.sleep(0.05)
 
                 for id in self.addresses:
 
                     try:
-
-                        # don't send heartbeat message itself
-                        if id == self.id:
-                            continue
-
                         with ServerProxy(f'http://{self.addresses[id][0]}:{self.addresses[id][1]}') as other_node:
                             response = other_node.append_entries(self.term, self.id)
                             if response[0] > self.term:
                                 self.change_state(State.FOLLOWER, new_term=response[0])
-                    
+                                break
                     except ConnectionRefusedError:
                         continue
-
-
 
 if __name__ == '__main__':
     

@@ -2,11 +2,6 @@ server started at 127.0.0.1:50000
 I am a follower. Term: 0
 The leader is dead
 I am a candidate. Term: 1
-Voted for node 0
-Votes received
-Votes received
+voted for node 0
 Votes received
 I am a leader. Term: 1
-I am a follower. Term: 2
-The leader is dead
-I am a candidate. Term: 3
